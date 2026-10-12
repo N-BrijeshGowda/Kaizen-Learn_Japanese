@@ -1,0 +1,392 @@
+// Kaizen data model (PRD section 13).
+// Works on MySQL 8 (production) and MariaDB 10.4 (XAMPP, development).
+// Structured values (item "parts", quiz item ids, answers) are stored as JSON text
+// because MariaDB's JSON type is only an alias for LONGTEXT.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  learner
+  reviewer
+  admin
+}
+
+enum UserStatus {
+  active
+  deactivated
+}
+
+enum TokenType {
+  verify
+  reset
+}
+
+enum ItemKind {
+  word
+  phrase
+  sentence
+}
+
+enum ContentStatus {
+  draft
+  published
+}
+
+enum ReviewStatus {
+  draft
+  in_review
+  approved
+  wrong
+}
+
+enum UnlockedVia {
+  start
+  progress
+  quiz
+}
+
+enum LedgerReason {
+  quiz
+  set
+  level
+  roleplay
+  unlock
+}
+
+enum QuizKind {
+  daily
+  unlock
+  level
+}
+
+enum EventType {
+  learn
+  say_it
+  quiz
+  roleplay
+}
+
+enum Speaker {
+  colleague
+  you
+}
+
+model User {
+  id               Int        @id @default(autoincrement())
+  email            String     @unique @db.VarChar(255)
+  emailVerifiedAt  DateTime?
+  passwordHash     String     @db.VarChar(255)
+  name             String     @db.VarChar(80)
+  role             Role       @default(learner)
+  showRomaji       Boolean    @default(true)
+  onboardedAt      DateTime?
+  status           UserStatus @default(active)
+  failedAttempts   Int        @default(0)
+  failedWindowStart DateTime?
+  sessionVersion   Int        @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime   @default(now())
+
+  tokens          EmailToken[]
+  userItems       UserItem[]
+  userLevels      UserLevel[]
+  userRoleplays   UserRoleplay[]
+  ledger          PointsLedger[]
+  quizSets        QuizSet[]
+  itemReviewState UserItemReview[]
+  quizAttempts    QuizAttempt[]
+  events          StudyEvent[]
+  dailyActivity   DailyActivity[]
+  streak          Streak?
+
+  @@map("users")
+}
+
+model EmailToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  type      TokenType
+  tokenHash String    @unique @db.VarChar(64)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("email_tokens")
+}
+
+model Level {
+  id       Int           @id // 1 to 5
+  name     String        @db.VarChar(80)
+  kind     ItemKind
+  subtitle String        @db.VarChar(200)
+  status   ContentStatus @default(published)
+
+  sets       LearnSet[]
+  userLevels UserLevel[]
+
+  @@map("levels")
+}
+
+model LearnSet {
+  id      Int    @id @default(autoincrement())
+  levelId Int
+  order   Int
+  name    String @db.VarChar(80)
+
+  level Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  items Item[]
+
+  @@unique([levelId, order])
+  @@map("sets")
+}
+
+model Item {
+  id           Int          @id @default(autoincrement())
+  setId        Int
+  order        Int
+  kana         String       @db.VarChar(255)
+  romaji       String       @db.VarChar(255)
+  english      String       @db.VarChar(255)
+  note         String       @db.Text
+  parts        String?      @db.Text // JSON text: [[kana, romaji, meaning], ...]
+  version      Int          @default(1)
+  reviewStatus ReviewStatus @default(draft)
+
+  set          LearnSet         @relation(fields: [setId], references: [id], onDelete: Cascade)
+  audio        ItemAudio[]
+  reviews      ItemReview[]
+  userItems    UserItem[]
+  reviewState  UserItemReview[]
+  events       StudyEvent[]
+
+  @@unique([setId, order])
+  @@map("items")
+}
+
+model ItemAudio {
+  id       Int    @id @default(autoincrement())
+  itemId   Int
+  voice    String @db.VarChar(40)
+  speed    String @db.VarChar(10) // normal | slow
+  filePath String @db.VarChar(255)
+  textHash String @db.VarChar(64)
+  version  Int    @default(1)
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, voice, speed])
+  @@map("item_audio")
+}
+
+model ItemReview {
+  id         Int          @id @default(autoincrement())
+  itemId     Int
+  reviewerId Int
+  target     String       @db.VarChar(10) // text | audio
+  verdict    ReviewStatus
+  reason     String?      @db.Text
+  createdAt  DateTime     @default(now())
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("item_reviews")
+}
+
+model Roleplay {
+  id     Int           @id @default(autoincrement())
+  order  Int           @unique
+  title  String        @db.VarChar(120)
+  scene  String        @db.VarChar(255)
+  status ContentStatus @default(published)
+
+  lines     RoleplayLine[]
+  completed UserRoleplay[]
+
+  @@map("roleplays")
+}
+
+model RoleplayLine {
+  id           Int          @id @default(autoincrement())
+  roleplayId   Int
+  order        Int
+  speaker      Speaker
+  kana         String       @db.VarChar(255)
+  romaji       String       @db.VarChar(255)
+  english      String       @db.VarChar(255)
+  version      Int          @default(1)
+  reviewStatus ReviewStatus @default(draft)
+  reviewNote   String?      @db.Text // the reviewer's reason when a line is marked Wrong
+
+  roleplay Roleplay @relation(fields: [roleplayId], references: [id], onDelete: Cascade)
+
+  @@unique([roleplayId, order])
+  @@map("roleplay_lines")
+}
+
+model UserItem {
+  userId     Int
+  itemId     Int
+  learnedAt  DateTime?
+  lastSeenAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([userId, itemId])
+  @@map("user_items")
+}
+
+model UserLevel {
+  userId      Int
+  levelId     Int
+  unlockedAt  DateTime    @default(now())
+  unlockedVia UnlockedVia
+  completedAt DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, levelId])
+  @@map("user_levels")
+}
+
+model UserRoleplay {
+  userId      Int
+  roleplayId  Int
+  completedAt DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleplay Roleplay @relation(fields: [roleplayId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleplayId])
+  @@map("user_roleplays")
+}
+
+model PointsLedger {
+  id        Int          @id @default(autoincrement())
+  userId    Int
+  delta     Int
+  reason    LedgerReason
+  refKey    String       @db.VarChar(80)
+  localDate DateTime     @db.Date
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Once-only awards (set, level, role-play, daily quiz) cannot be repeated.
+  @@unique([userId, reason, refKey])
+  @@index([userId])
+  @@map("points_ledger")
+}
+
+model QuizSet {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  localDate        DateTime @db.Date
+  setNo            Int
+  itemIds          String   @db.Text // JSON text: number[5]
+  builtForMaxLevel Int
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts QuizAttempt[]
+
+  @@unique([userId, localDate, setNo])
+  @@map("quiz_sets")
+}
+
+model UserItemReview {
+  userId         Int
+  itemId         Int
+  step           Int       @default(0) // 0 to 4 -> 1, 3, 7, 14, 30 days
+  dueDate        DateTime  @db.Date
+  lastResult     Boolean
+  lastAnsweredAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([userId, itemId])
+  @@index([userId, dueDate])
+  @@map("user_item_review")
+}
+
+model QuizAttempt {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  kind          QuizKind
+  quizSetId     Int?
+  targetLevel   Int?
+  answers       String    @db.Text // JSON text
+  score         Int
+  pointsAwarded Int       @default(0)
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizSet QuizSet? @relation(fields: [quizSetId], references: [id], onDelete: SetNull)
+
+  @@index([userId, kind])
+  @@map("quiz_attempts")
+}
+
+model StudyEvent {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  type      EventType
+  itemId    Int?
+  localDate DateTime  @db.Date
+  createdAt DateTime  @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item Item? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, localDate])
+  @@map("study_events")
+}
+
+model DailyActivity {
+  userId       Int
+  localDate    DateTime @db.Date
+  itemsLearned Int      @default(0)
+  quizDone     Boolean  @default(false)
+  qualified    Boolean  @default(false)
+  restUsed     Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, localDate])
+  @@map("daily_activity")
+}
+
+model Streak {
+  userId            Int       @id
+  current           Int       @default(0)
+  longest           Int       @default(0)
+  lastQualifiedDate DateTime? @db.Date
+  restWeek          DateTime? @db.Date // Monday of the week the rest day applies to
+  restUsed          Boolean   @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("streaks")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int
+  action    String   @db.VarChar(80)
+  target    String   @db.VarChar(120)
+  createdAt DateTime @default(now())
+
+  @@map("audit_log")
+}

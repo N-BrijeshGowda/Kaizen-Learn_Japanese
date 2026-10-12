@@ -1,26 +1,461 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+  Kaizen design tokens, second generation ("aizome" language).
+  Warm paper neutrals, one vermilion accent used the same way on every screen, Geist for Latin text
+  and Noto Sans JP for Japanese. Dark mode follows the system.
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  One shape rule, applied everywhere:
+    buttons, tags, chips, tabs  -> full pill
+    inputs, tiles, small panels -> 14px  (Tailwind rounded-lg)
+    cards and big panels        -> 22px  (Tailwind rounded-xl, .card)
+*/
+
+:root {
+  --canvas: #fbfbfa;
+  --surface: #ffffff;
+  --surface-2: #f4f3f0;
+  --line: #eaeaea;
+  --line-strong: #8f8e89; /* form borders: 3:1 against white */
+  --ink: #111111;
+  --ink-2: #3a3936;
+  --muted: #6b6a66;
+  --accent: #c8381f;
+  --accent-hover: #a92f19;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbece8;
+  --tile-bg: #111111;
+  --tile-ink: #ffffff;
+  --mist-top: #e9e8e4;
+  --mist-bottom: #b9b8b3;
+  --mist-fog: rgb(255 255 255 / 0.35);
+  --grass: #1b1b1a;
+  --shadow-tint: 17 17 17;
+
+  --tag-red-bg: #fdebec;
+  --tag-red-ink: #9f2f2d;
+  --tag-blue-bg: #e1f3fe;
+  --tag-blue-ink: #1f6c9f;
+  --tag-green-bg: #edf3ec;
+  --tag-green-ink: #346538;
+  --tag-yellow-bg: #fbf3db;
+  --tag-yellow-ink: #956400;
+
+  --z-nav: 20;
+  --z-toast: 40;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #121211;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --line: #2f2f2c;
+    --line-strong: #7c7b76;
+    --ink: #f2f1ee;
+    --ink-2: #d4d3ce;
+    --muted: #a3a29d;
+    --accent: #f27b62;
+    --accent-hover: #f69580;
+    --accent-ink: #121211;
+    --accent-soft: #34211d;
+    --tile-bg: #232321;
+    --tile-ink: #f2f1ee;
+    --mist-top: #2c2c2a;
+    --mist-bottom: #181817;
+    --mist-fog: rgb(255 255 255 / 0.08);
+    --grass: #070707;
+    --shadow-tint: 0 0 0;
+
+    --tag-red-bg: #3a1f1e;
+    --tag-red-ink: #f4a9a6;
+    --tag-blue-bg: #17303f;
+    --tag-blue-ink: #8fcbee;
+    --tag-green-bg: #1d2e1f;
+    --tag-green-ink: #9ad19d;
+    --tag-yellow-bg: #3a2f14;
+    --tag-yellow-ink: #e6c36a;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-geist), var(--font-jp), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 22px;
+}
+
+/* Base rules live in the base layer so component classes such as .tile-accent can override them. */
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+
+  /* A disabled control just rests: no "forbidden" cursor, and it never swallows the click that follows. */
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: default;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink-2);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--ink);
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+    font-weight: 600;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* Buttons: full pill, flat, quiet press */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.875rem;
+    padding: 0 1.375rem;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s,
+      opacity 0.2s,
+      transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  /* Small inline spinner shown inside a button while its request is in flight */
+  .spinner {
+    display: inline-block;
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--canvas);
+  }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+  .btn-quiet {
+    background: transparent;
+    color: var(--ink-2);
+  }
+  .btn-quiet:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+  /* The button that sits on an accent-filled tile: inverted so it stays readable in both themes */
+  .btn-on-accent {
+    background: var(--tile-ink);
+    color: var(--tile-bg);
+  }
+  .btn-on-accent:hover:not(:disabled) {
+    opacity: 0.92;
+  }
+  .btn-block {
+    width: 100%;
+  }
+
+  .link {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  /* Cards: 22px, hairline border, no shadow at rest */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+  }
+  .card-link {
+    transition:
+      box-shadow 0.25s,
+      transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+      border-color 0.2s;
+  }
+  .card-link:hover {
+    transform: translateY(-2px);
+    border-color: var(--line-strong);
+    box-shadow: 0 14px 30px -18px rgb(var(--shadow-tint) / 0.35);
+  }
+
+  /* Tiles that carry the accent colour, for the one hero moment on a screen */
+  .tile-accent {
+    background: var(--tile-bg);
+    color: var(--tile-ink);
+    border-radius: 22px;
+  }
+  .tile-accent h1,
+  .tile-accent h2,
+  .tile-accent h3 {
+    color: inherit;
+  }
+  .tile-soft {
+    background: var(--accent-soft);
+    border-radius: 22px;
+  }
+
+  /* Tags: small pills in cool pastels, for status only */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1875rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tag-neutral {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+  .tag-red {
+    background: var(--tag-red-bg);
+    color: var(--tag-red-ink);
+  }
+  .tag-blue {
+    background: var(--tag-blue-bg);
+    color: var(--tag-blue-ink);
+  }
+  .tag-green {
+    background: var(--tag-green-bg);
+    color: var(--tag-green-ink);
+  }
+  .tag-yellow {
+    background: var(--tag-yellow-bg);
+    color: var(--tag-yellow-ink);
+  }
+
+  /* Pill tabs and chips, shared by admin tabs, set pickers and the sign-in switch */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: 2.5rem;
+    padding: 0 1rem;
+    border-radius: 9999px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition:
+      background-color 0.2s,
+      color 0.2s,
+      border-color 0.2s;
+  }
+  a.chip:hover {
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+  .chip[aria-current="page"],
+  .chip[aria-current="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--canvas);
+  }
+
+  /* Forms: label above, error below */
+  .field {
+    display: grid;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+  }
+  .field > span {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .input {
+    width: 100%;
+    min-height: 2.875rem;
+    padding: 0 1rem;
+    border-radius: 14px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input::placeholder {
+    color: var(--muted);
+  }
+  .input::-ms-reveal {
+    display: none;
+  }
+  .input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .help {
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+  .notice {
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+  }
+  .notice-error {
+    background: var(--tag-red-bg);
+    color: var(--tag-red-ink);
+  }
+  .notice-ok {
+    background: var(--tag-green-bg);
+    color: var(--tag-green-ink);
+  }
+  .notice-info {
+    background: var(--tag-blue-bg);
+    color: var(--tag-blue-ink);
+  }
+
+  /* Progress */
+  .progress {
+    height: 8px;
+    border-radius: 9999px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .progress > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    border-radius: inherit;
+    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Data tables: tinted header row, hairlines between rows */
+  .table-head {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  .jp {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+
+/* Motion: content rises once on load (staggered with --i), the goal ring draws in, hover lifts.
+   All of it is switched off when the user prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(min(var(--i, 0), 4) * 35ms);
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .ring-draw {
+    animation: ring-draw 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+  }
+  @keyframes ring-draw {
+    from {
+      stroke-dashoffset: var(--ring-circ);
+    }
+  }
+  @keyframes pulse-ring {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.35;
+    }
+    50% {
+      transform: scale(1.35);
+      opacity: 0;
+    }
+  }
+  .recording-ring {
+    animation: pulse-ring 1.4s ease-in-out infinite;
+  }
+  @keyframes skeleton-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+  .skeleton {
+    animation: skeleton-pulse 1.4s ease-in-out infinite;
+  }
+}
+.skeleton {
+  background: var(--surface-2);
+  border-radius: 14px;
 }

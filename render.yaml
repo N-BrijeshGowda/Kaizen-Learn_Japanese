@@ -1,0 +1,28 @@
+# Render blueprint: one free web service. The database lives on Aiven (see docs/DEPLOY.md).
+services:
+  - type: web
+    name: kaizen
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    # Migrations run on every start; they only apply what is new, so this is safe to repeat.
+    startCommand: npx prisma migrate deploy && npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      # The free instance has 512 MB. Keep Node under it so the build is not killed.
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=460
+      - key: AUTH_TRUST_HOST
+        value: "true"
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      # Set these two by hand in the Render dashboard (they contain secrets).
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_CA
+        sync: false
