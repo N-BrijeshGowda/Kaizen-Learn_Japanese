@@ -1,7 +1,7 @@
 # Kaizen
 
 Spoken Japanese for office teams: short daily lessons, a quiz, scripted office conversations and a team ranking.
-Built from `../Kaizen_PRD.md` (v1.0 draft). Milestones **M1 to M4 are done**; M5 (hardening and polish) is next.
+Built from `../Kaizen_PRD.md` (v1.0 draft). Milestones **M1 to M4 are done**.
 
 **New here? Read [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md).** It explains every file in plain language: what it does, why it exists, and what else could have been used.
 
@@ -13,7 +13,6 @@ Built from `../Kaizen_PRD.md` (v1.0 draft). Milestones **M1 to M4 are done**; M5
 | M2 Learning | Today, Learn (levels, sets, gating), lesson card with audio, Say it (record and compare), points ledger, Settings | Done |
 | M3 Quiz and streaks | Daily quiz (5 sets a day), review dates, unlock quiz, level quizzes, streak and weekly rest day, daily rollover job, Progress page | Done |
 | M4 Role-play, ranking, admin | 24 role-plays, ranking, admin (users, content manager, dashboard, CSV export, audit log), reviewer queue | Done |
-| M5 Hardening | Installable app (PWA) with offline audio, real text-to-speech audio, accessibility and mobile pass, backups, per-event analytics | Not started |
 
 ### Feature checklist
 
@@ -145,7 +144,7 @@ Locally: `curl -X POST -H "x-cron-secret: <value from .env>" http://localhost:30
 
 ## Deploying (CloudPanel VPS, sketch)
 
-The PRD leaves hosting until the app is built. The intended setup: a Node.js site in CloudPanel, MySQL 8 created in CloudPanel, `npm ci && npx prisma migrate deploy && npm run build`, run `npm start` under PM2 behind Nginx with Let's Encrypt, set the four environment variables, add the cron line above, nightly `mysqldump` copied off the server. Not yet configured: Next's `standalone` output, the PM2 file and the backup script (M5).
+The PRD leaves hosting until the app is built. The intended setup: a Node.js site in CloudPanel, MySQL 8 created in CloudPanel, `npm ci && npx prisma migrate deploy && npm run build`, run `npm start` under PM2 behind Nginx with Let's Encrypt, set the four environment variables, add the cron line above, nightly `mysqldump` copied off the server. Not yet configured: Next's `standalone` output, the PM2 file and the backup script.
 
 ## Decisions and differences from the PRD
 
