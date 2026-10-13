@@ -129,7 +129,7 @@ Everyone is on IST (UTC+5:30). "Today" means the IST calendar day. This is handl
 
 ### `public/` (five `.svg` files) and `src/app/favicon.ico`
 **What:** Leftover starter images from the Next.js template (logos for Next and Vercel). Nothing in Kaizen uses them. `favicon.ico` is the default browser-tab icon.
-**Why:** They came with the template. They are safe to delete. A real Kaizen icon is part of the later app-install work (M5).
+**Why:** They came with the template. They are safe to delete. A real Kaizen icon can replace them later.
 
 ---
 
@@ -439,7 +439,7 @@ The most important folder. Files marked **(pure)** have no database.
 
 ### `speech.ts` (runs in the browser)
 **What:** Plays Japanese audio. If an audio file is supplied it plays that; otherwise it uses the browser's built-in Japanese voice at normal or slow speed. Starting one sound stops the last.
-**Why:** The real recordings (M5) do not exist yet, so this fallback keeps lessons working. It is already built to switch to files later.
+**Why:** The real recordings do not exist yet, so this fallback keeps lessons working. It is already built to switch to files later.
 **Instead:** Waiting for finished audio would block everything.
 
 ### `toast.ts` (runs in the browser)
@@ -485,7 +485,7 @@ These are the pieces pages are built from. Most run in the browser because they 
 # Part 10: What is not used or not built
 
 - **Unused leftovers (safe to delete):** `components/app/ComingSoon.tsx`, the five `public/*.svg` files, the default favicon, `getApiUserWithRole` in `dal.ts`, `istToday` in `time.ts`, and the `email_tokens` table (kept so the schema matches the PRD).
-- **Not built yet (M5 and later):** the installable app and offline audio, the real text-to-speech audio, the per-event analytics list, a saved history of edited text, adding or removing role-play lines.
+- **Not built yet:** the installable app and offline audio, the real text-to-speech audio, the per-event analytics list, a saved history of edited text, adding or removing role-play lines.
 
 ---
 
