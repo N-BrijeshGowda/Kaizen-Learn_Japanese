@@ -99,11 +99,11 @@ export function QuizRunner({ kind, setNo, level, showRomaji, backHref, backLabel
     }
   }
 
-  // A correct answer moves on by itself after 2 seconds. A wrong answer waits for "Next".
+  // A correct answer moves on by itself after 1.5 seconds. A wrong answer waits for "Next".
   const autoAdvance = Boolean(answered?.correct) && !autoOff;
   useEffect(() => {
     if (!autoAdvance) return;
-    const timer = setTimeout(() => nextRef.current(), 2000);
+    const timer = setTimeout(() => nextRef.current(), 1500);
     return () => clearTimeout(timer);
   }, [autoAdvance, index]);
 
