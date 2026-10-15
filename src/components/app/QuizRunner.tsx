@@ -46,7 +46,9 @@ export function QuizRunner({ kind, setNo, level, showRomaji, backHref, backLabel
   const [answered, setAnswered] = useState<Answered | null>(null);
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [autoOff, setAutoOff] = useState(false);
   const startedRef = useRef(false);
+  const nextRef = useRef<() => void>(() => {});
 
   const begin = useCallback(async () => {
     setError(null);
@@ -55,6 +57,7 @@ export function QuizRunner({ kind, setNo, level, showRomaji, backHref, backLabel
     setIndex(0);
     setChosen(null);
     setAnswered(null);
+    setAutoOff(false);
     try {
       const { ok, data } = await post<Started>("/api/quiz/start", { kind, set: setNo, level });
       if (!ok) return setError(data.error ?? "Could not open the quiz. Please try again.");
@@ -96,6 +99,14 @@ export function QuizRunner({ kind, setNo, level, showRomaji, backHref, backLabel
     }
   }
 
+  // Daily quiz: a correct answer moves on by itself after 2 seconds. A wrong answer waits for "Next".
+  const autoAdvance = kind === "daily" && Boolean(answered?.correct) && !autoOff;
+  useEffect(() => {
+    if (!autoAdvance) return;
+    const timer = setTimeout(() => nextRef.current(), 2000);
+    return () => clearTimeout(timer);
+  }, [autoAdvance, index]);
+
   async function next() {
     if (!quiz || !answered) return;
     stopAudio();
@@ -108,16 +119,21 @@ export function QuizRunner({ kind, setNo, level, showRomaji, backHref, backLabel
     setBusy(true);
     try {
       const { ok, data } = await post<Summary>("/api/quiz/complete", { attemptId: quiz.attemptId });
-      if (!ok) return showToast(data.error ?? "Could not finish the quiz. Please try again.");
+      if (!ok) {
+        setAutoOff(true);
+        return showToast(data.error ?? "Could not finish the quiz. Please try again.");
+      }
       setSummary(data);
       if (data.goalJustMet) showToast(`Daily goal complete. Streak: ${data.streak ?? 1} ${data.streak === 1 ? "day" : "days"}`);
       router.refresh();
     } catch {
+      setAutoOff(true);
       showToast("We could not reach the server. Check your connection and try again.");
     } finally {
       setBusy(false);
     }
   }
+  nextRef.current = next;
 
   if (error) {
     return (
@@ -225,10 +241,12 @@ export function QuizRunner({ kind, setNo, level, showRomaji, backHref, backLabel
                 ? "Right."
                 : `Not quite. It is ${answered.item.kana}${showRomaji ? ` (${answered.item.romaji})` : ""}, "${answered.item.english}".`}
             </p>
-            <button className="btn btn-primary mt-3" type="button" onClick={next} disabled={busy}>
-              {last ? "See my score" : "Next"}
-              {busy ? <span className="spinner" aria-hidden="true" /> : <ArrowRight size={18} weight="bold" aria-hidden="true" />}
-            </button>
+            {!autoAdvance && (
+              <button className="btn btn-primary mt-3" type="button" onClick={next} disabled={busy}>
+                {last ? "See my score" : "Next"}
+                {busy ? <span className="spinner" aria-hidden="true" /> : <ArrowRight size={18} weight="bold" aria-hidden="true" />}
+              </button>
+            )}
           </div>
         )}
       </div>
