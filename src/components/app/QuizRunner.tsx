@@ -99,8 +99,8 @@ export function QuizRunner({ kind, setNo, level, showRomaji, backHref, backLabel
     }
   }
 
-  // Daily quiz: a correct answer moves on by itself after 2 seconds. A wrong answer waits for "Next".
-  const autoAdvance = kind === "daily" && Boolean(answered?.correct) && !autoOff;
+  // A correct answer moves on by itself after 2 seconds. A wrong answer waits for "Next".
+  const autoAdvance = Boolean(answered?.correct) && !autoOff;
   useEffect(() => {
     if (!autoAdvance) return;
     const timer = setTimeout(() => nextRef.current(), 2000);
