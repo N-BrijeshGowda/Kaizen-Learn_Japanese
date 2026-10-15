@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Microphone, Stop } from "@phosphor-icons/react";
 import { PlayButton } from "@/components/app/PlayButton";
+import { isMatch } from "@/lib/roleplay-core";
 import { stopAudio } from "@/lib/speech";
 import { queueToast, showToast } from "@/lib/toast";
 
@@ -47,7 +48,21 @@ export function RoleplayPlayer({ id, position, total, tier, title, scene, lines,
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState<number | null>(null);
   const [heard, setHeard] = useState<Record<number, string>>({});
+  const [meaning, setMeaning] = useState<Record<number, string | null | undefined>>({});
   const recRef = useRef<Recognition | null>(null);
+
+  /** English for what was said: the script's own English when it matches, otherwise a lookup in the app's phrases. */
+  async function explain(line: Line, text: string) {
+    if (!text.trim()) return;
+    if (isMatch(text, line.kana)) return setMeaning((m) => ({ ...m, [line.id]: line.english }));
+    try {
+      const res = await fetch("/api/translate-phrase", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      const data = (await res.json().catch(() => ({}))) as { english?: string | null };
+      setMeaning((m) => ({ ...m, [line.id]: data.english ?? null }));
+    } catch {
+      setMeaning((m) => ({ ...m, [line.id]: null }));
+    }
+  }
 
   useEffect(
     () => () => {
@@ -67,10 +82,12 @@ export function RoleplayPlayer({ id, position, total, tier, title, scene, lines,
     rec.lang = "ja-JP";
     rec.interimResults = true;
     rec.continuous = false;
+    let latest = "";
     rec.onresult = (e) => {
       const text = Array.from(e.results)
         .map((r) => r[0]?.transcript ?? "")
         .join("");
+      latest = text;
       setHeard((h) => ({ ...h, [line.id]: text }));
     };
     rec.onerror = (e) => {
@@ -80,10 +97,12 @@ export function RoleplayPlayer({ id, position, total, tier, title, scene, lines,
     };
     rec.onend = () => {
       setRecording((cur) => (cur === line.id ? null : cur));
+      void explain(line, latest);
       if (recRef.current === rec) recRef.current = null;
     };
     recRef.current = rec;
     setHeard((h) => ({ ...h, [line.id]: "" }));
+    setMeaning((m) => ({ ...m, [line.id]: undefined }));
     setRecording(line.id);
     try {
       rec.start();
@@ -152,6 +171,9 @@ export function RoleplayPlayer({ id, position, total, tier, title, scene, lines,
           }
           const isRecording = recording === line.id;
           const text = heard[line.id];
+          const done = !isRecording && Boolean(text);
+          const right = done && isMatch(text, line.kana);
+          const result = !done ? "" : right ? "border-[var(--tag-green-ink)] bg-[var(--tag-green-bg)]" : "border-[var(--tag-red-ink)] bg-[var(--tag-red-bg)]";
           return (
             <li key={line.id} className="flex justify-end">
               <div className="w-full max-w-[92%] sm:max-w-[80%]">
@@ -162,9 +184,25 @@ export function RoleplayPlayer({ id, position, total, tier, title, scene, lines,
                     {isRecording ? <Stop size={18} weight="bold" aria-hidden="true" /> : <Microphone size={18} weight="bold" aria-hidden="true" />}
                     {isRecording ? "Stop" : text ? "Record again" : "Record"}
                   </button>
-                  <p className="jp min-h-10 flex-1 py-2 text-lg text-ink" lang="ja" aria-live="polite">
-                    {isRecording && !text ? <span className="text-sm text-muted">Listening…</span> : text}
-                  </p>
+                  <div className={`min-h-12 flex-1 rounded-lg border-2 px-4 py-2 transition-colors ${result || "border-line bg-surface"}`} aria-live="polite">
+                    {isRecording && !text ? (
+                      <span className="text-sm text-muted">Listening…</span>
+                    ) : (
+                      <>
+                        <p className="jp text-lg text-ink" lang="ja">
+                          {text}
+                        </p>
+                        {done && (
+                          <p className={`text-sm font-semibold ${right ? "text-[var(--tag-green-ink)]" : "text-[var(--tag-red-ink)]"}`}>
+                            {right ? "Correct" : "Not quite. Hold the card to see the answer."}
+                          </p>
+                        )}
+                        {done && meaning[line.id] !== undefined && (
+                          <p className="text-sm text-ink-2">{meaning[line.id] ? `English: ${meaning[line.id]}` : "English: no translation found for this phrase."}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </li>
